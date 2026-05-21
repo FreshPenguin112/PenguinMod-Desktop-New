@@ -12,6 +12,15 @@
   "build": {
     "appId": "com.penguinmod.desktop",
     "productName": "PenguinMod Desktop",
+    "fileAssociations": [
+      {
+        "ext": "pmp",
+        "name": "Penguinmod Project",
+        "description": "Penguinmod Project File",
+        "mimeType": "application/x-pmp",
+        "icon": "app/logo.ico"
+      }
+    ],
     "directories": {
       "output": "builds"
     },
