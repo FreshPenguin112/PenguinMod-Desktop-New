@@ -65,10 +65,14 @@
       ]
     },
     "deb": {
-      "compression": "xz"
+      "compression": "xz",
+      "afterInstall": "app/postinstall.sh"
+
     },
     "rpm": {
-      "compression": "xz"
+      "compression": "xz",
+      "afterInstall": "app/postinstall.sh"
+
     },
     "win": {
       "target": [
