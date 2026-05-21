@@ -242,6 +242,11 @@ async function runUpdateCheck(win) {
         const releases = await res.json();
         const release = releases[0];
         if (!release || !release.assets?.length) {
+            dialog.showMessageBoxSync(win, {
+                type: "info",
+                message: "No Updates Found",
+                detail: "You are already using the latest version.",
+            });
             return { success: false, message: "No release assets found." };
         }
 
