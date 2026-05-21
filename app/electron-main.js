@@ -289,10 +289,32 @@ async function runUpdateCheck(win) {
   }
 }
 
+// shitty patch because for some reason using data uris in project_url param errors here
+const pendingLocalFiles = new Map();
+
+function storeLocalFile(filePath) {
+  const buf = fs.readFileSync(filePath);
+  const id = `localfile-${Date.now()}`;
+  pendingLocalFiles.set(id, buf);
+  return `https://studio.penguinmod.com/__localfile__/${id}`;
+}
+
 function setupProtocol() {
   protocol.handle("https", (request) => {
     try {
       const url = new URL(request.url);
+
+      if (url.host === "studio.penguinmod.com" && url.pathname.startsWith("/__localfile__/")) {
+        const id = url.pathname.replace("/__localfile__/", "");
+        const buf = pendingLocalFiles.get(id);
+        if (buf) {
+          pendingLocalFiles.delete(id);
+          return new Response(buf, {
+            headers: { "Content-Type": "application/octet-stream" }
+          });
+        }
+        return new Response("Not found", { status: 404 });
+      }
       const hostMap = {
         "studio.penguinmod.com": { dir: folders.editor, def: "editor.html" },
         "penguinmod.com": { dir: folders.home, def: "index.html" },
@@ -307,7 +329,10 @@ function setupProtocol() {
 
         const filePath = path.join(cfg.dir, filename);
         if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-          return net.fetch("file://" + filePath);
+          const fileUrl = new URL('file://' + filePath);
+          fileUrl.search = url.search;
+          fileUrl.hash = url.hash;
+          return net.fetch(fileUrl.href);
         }
       }
 
@@ -322,13 +347,19 @@ function setupProtocol() {
         const filePath = path.join(folders.sharkpools, filename);
         const decoded = decodeURIComponent(filePath);
         if (fs.existsSync(decoded) && fs.statSync(decoded).isFile()) {
-          return net.fetch("file://" + filePath);
+          const fileUrl = new URL('file://' + filePath);
+          fileUrl.search = url.search;
+          fileUrl.hash = url.hash;
+          return net.fetch(fileUrl.href);
         }
       }
 
       const filePath = getLocalFile(request.url);
       if (filePath && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-        return net.fetch("file://" + filePath);
+        const fileUrl = new URL('file://' + filePath);
+        fileUrl.search = url.search;
+        fileUrl.hash = url.hash;
+        return net.fetch(fileUrl.href);
       }
     } catch (err) {
       console.error(`[HTTPS Interceptor] Error parsing ${request.url}:`, err);
@@ -408,7 +439,12 @@ function createWindow(fileToOpen) {
   const startupTarget = getStartupSetting();
   let startUrl = "";
   if (fileToOpen) {
-    startUrl += `https://studio.penguinmod.com/editor.html?project=${encodeURIComponent(fileToOpen)}`;
+    try {
+      const projectUrl = storeLocalFile(fileToOpen);
+      startUrl = `https://studio.penguinmod.com/editor.html?project_url=${encodeURIComponent(projectUrl)}`;
+    } catch (err) {
+      console.error("[main] Failed to load local project file:", err);
+    }
   }
   mainWindow.loadURL(startUrl.length > 0 ? startUrl : (startupTarget === "editor" ? "https://studio.penguinmod.com/editor.html" : "https://penguinmod.com/index.html"));
 
@@ -437,6 +473,12 @@ function createWindow(fileToOpen) {
   setupAppMenu(mainWindow);
 
   mainWindow.on("closed", () => (mainWindow = null));
+  mainWindow.webContents.on('before-input-event', (event, input) => { // allow devtools with ctrl shift i, something breaks that here
+    if (input.control && input.shift && input.key.toLowerCase() === 'i') {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
 
   let isUnloadDialogOpen = false;
   mainWindow.webContents.on("will-prevent-unload", (event) => {
@@ -596,3 +638,4 @@ function setupDialogs() {
     promptWindow.once("ready-to-show", () => promptWindow.show());
   });
 }
+
