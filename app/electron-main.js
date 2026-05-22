@@ -231,7 +231,7 @@ function sendUpdateProgress(phase, percent, status) {
 }
 
 async function runUpdateCheck(win) {
-  const GITHUB_REPO = "PenguinMod/PenguinMod-Desktop";
+  const GITHUB_REPO = "FreshPenguin112/PenguinMod-Desktop";
   try {
     const res = await net.fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases`, {
       headers: { Accept: "application/vnd.github+json" },
